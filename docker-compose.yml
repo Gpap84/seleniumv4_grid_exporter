@@ -3,9 +3,14 @@
 # To stop the execution, hit Ctrl+C, and then `docker-compose -f docker-compose.yml down`
 version: "3"
 
+networks:
+  monitor-net:
+    driver: bridge
+
 volumes:
-    prometheus_data: {}
-    grafana_data: {}
+    prometheus_data:
+    grafana_data:
+    alertmanager-data:
 
 services:
   chrome:
@@ -26,6 +31,8 @@ services:
       - SCREEN_DEPTH=24
     ports:
       - "6900:5900"
+    networks:
+      - monitor-net
 
   firefox:
     image: selenium/node-firefox:4.0.0-beta-1-20210215
@@ -39,6 +46,21 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
     ports:
       - "6901:5900"
+    networks:
+      - monitor-net  
+
+  pushgateway:
+    image: prom/pushgateway
+    container_name: pushgateway
+    restart: unless-stopped
+    expose:
+      - 9091
+    ports:
+      - "9091:9091"
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"    
 
   opera:
     image: selenium/node-opera:4.0.0-beta-1-20210215
@@ -52,6 +74,20 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
     ports:
       - "6902:5900"
+    networks:
+      - monitor-net  
+
+  alertmanager:
+    image: prom/alertmanager:v0.23.0
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - "./alertmanager:/config"
+      - alertmanager-data:/data
+    command: --config.file=/etc/alertmanager/alertmanager.yml --log.level=debug
+    networks:
+      - monitor-net
 
   selenium-hub:
     image: selenium/hub:4.0.0-beta-1-20210215
@@ -60,6 +96,8 @@ services:
       - "4442:4442"
       - "4443:4443"
       - "4444:4444"
+    networks:
+      - monitor-net  
 
   prometheus:
     image: prom/prometheus
@@ -76,6 +114,8 @@ services:
       - '--web.enable-admin-api'
     ports:
       - 9090:9090
+    networks:
+      - monitor-net  
 
   grafana:
     image: grafana/grafana
@@ -89,9 +129,13 @@ services:
     env_file:
       - ./grafana/config.monitoring
     user: "472"
+    networks:
+      - monitor-net
 
   selenium_grid_exporter:
     image: mcopjan/seleniumv4_grid_exporter:latest
     command: "--scrape-uri http://selenium-hub:4444"
     ports:
     - "8080:8080"
+    networks:
+      - monitor-net
