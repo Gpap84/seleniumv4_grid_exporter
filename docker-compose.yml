@@ -85,7 +85,7 @@ services:
     volumes:
       - "./alertmanager:/config"
       - alertmanager-data:/data
-    command: --config.file=/etc/alertmanager/alertmanager.yml --log.level=debug
+    command: --config.file=/config/alertmanager.yml --log.level=debug
     networks:
       - monitor-net
 
